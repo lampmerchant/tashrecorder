@@ -34,7 +34,7 @@ file_000=no
 file_001=no
 [FILE_INFO]
 file_000=tashrecorder1501.asm
-file_001=C:\Program Files\Microchip\MPASM Suite\p12lf1501.inc
+file_001=C:\Program Files\Microchip\MPASM Suite\p12f1501.inc
 [SUITE_INFO]
 suite_guid={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
 suite_state=generate-absolute-code
