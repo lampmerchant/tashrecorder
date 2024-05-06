@@ -10,17 +10,18 @@
 
 ;;; Connections ;;;
 
-;;;                                                  ;;;
-;                    .--------.                        ;
-;            Supply -|01 \/ 08|- Ground                ;
-;     RxD- <--- RA5 -|02    07|- RA0 <--- Audio In     ;
-;     RxD+ <--- RA4 -|03    06|- RA1 ---> Clock Out    ;
-;    !MCLR ---> RA3 -|04    05|- RA2 ---> Peak LED     ;
-;                    '--------'                        ;
-;                                                      ;
-;    Peak LED is active high.                          ;
-;                                                      ;
-;;;                                                  ;;;
+;;;                                                            ;;;
+;                          .--------.                            ;
+;                  Supply -|01 \/ 08|- Ground                    ;
+;           RxD- <--- RA5 -|02    07|- RA0 <--- MIDI/Audio In    ;
+;           RxD+ <--- RA4 -|03    06|- RA1 ---> Clock Out        ;
+;    Mode Select ---> RA3 -|04    05|- RA2 ---> LED              ;
+;                          '--------'                            ;
+;                                                                ;
+;    LED is active high.  Mode Select is MIDI when pulled low    ;
+;    and audio digitizer when allowed to float high.             ;
+;                                                                ;
+;;;                                                            ;;;
 
 
 ;;; Assembler Directives ;;;
@@ -29,11 +30,11 @@
 	#include	P12F1501.inc
 	errorlevel	-302	;Suppress "register not in bank 0" messages
 	errorlevel	-224	;Suppress TRIS instruction not recommended msgs
-	__config	_CONFIG1, _FOSC_INTOSC & _WDTE_OFF & _PWRTE_ON & _MCLRE_ON & _CP_OFF & _BOREN_OFF & _CLKOUTEN_OFF
+	__config	_CONFIG1, _FOSC_INTOSC & _WDTE_OFF & _PWRTE_ON & _MCLRE_OFF & _CP_OFF & _BOREN_OFF & _CLKOUTEN_OFF
 			;_FOSC_INTOSC	Internal oscillator, I/O on RA5
 			;_WDTE_OFF	Watchdog timer disabled
 			;_PWRTE_ON	Keep in reset for 64 ms on start
-			;_MCLRE_ON	RA3/!MCLR is !MCLR
+			;_MCLRE_ON	RA3/!MCLR is RA3
 			;_CP_OFF	Code protection off
 			;_BOREN_OFF	Brownout reset off
 			;_CLKOUTEN_OFF	CLKOUT disabled, I/O on RA4
@@ -67,7 +68,9 @@ WAITLAT	macro			;Wait until bit has been latched (BSR must be 0)
 ;;; Constants ;;;
 
 ;Pin Assignments
+INP_PIN	equ	RA0	;MIDI/audio pin
 LED_PIN	equ	RA2	;Peak LED pin
+SEL_PIN	equ	RA3	;Mode select pin
 
 ;Parameters
 PEAKPWR	equ	4	;2^n + 1 consecutive samples must peak to turn LED on
@@ -112,18 +115,70 @@ Interrupt
 	bra	$
 
 
-;;; Hardware Initialization ;;;
+;;; Common Hardware Initialization ;;;
 
 Init
 	banksel	OSCCON		;16 MHz high-freq internal oscillator
 	movlw	B'01111000'
 	movwf	OSCCON
 
-	banksel	ADCON0		;ADC on, left justified, Fosc/32, Vref is Vdd,
+	banksel	ADCON0		;ADC left justified, Fosc/32, Vref is Vdd,
 	movlw	B'00100000'	; source AN0, auto-triggered by Timer2 match
 	movwf	ADCON1
 	movlw	B'01010000'
 	movwf	ADCON2
+
+	banksel	T1CON		;Timer1 ticks 1:8 with instruction clock when
+	movlw	B'00110000'	; running
+	movwf	T1CON
+
+	banksel	T2CON		;Timer2 ticks with instruction clock, rolls over
+	movlw	86		; at a little under half the sample loop length
+	movwf	PR2
+	movlw	B'00000100'
+	movwf	T2CON
+
+	banksel	APFCON		;Move CLC1 to RA4
+	movlw	B'00000010'
+	movwf	APFCON
+
+	banksel	WPUA		;Weak pullup enabled on mode select only
+	movlw	1 << SEL_PIN
+	movwf	WPUA
+
+	banksel	OPTION_REG	;Weak pullups enabled
+	movlw	B'01111111'
+	movwf	OPTION_REG
+
+	banksel	LATA		;Default state of output pins is low
+	clrf	LATA
+
+	banksel	TRISA		;RxD, clock, and peak LED output, all other pins
+	movlw	B'00001001'	; inputs
+	movwf	TRISA
+
+	movlw	high ADRESH	;Initialize key globals
+	movwf	FSR0H
+	movlw	low ADRESH
+	movwf	FSR0L
+	movlw	high CLC1POL
+	movwf	FSR1H
+	movlw	low CLC1POL
+	movwf	FSR1L
+
+	movlb	0		;Enter audio digitizer or MIDI initialization
+	btfss	PORTA,SEL_PIN	; depending on whether mode select pin is high
+	goto	MidiInit	; or low
+	;fall through
+
+
+;;; Audio Digitizer Hardware Initialization ;;;
+
+AudioInit
+	banksel	WPUA		;Turn off weak pullup on input pin
+	bcf	WPUA,INP_PIN
+
+	banksel	ADCON0		;Turn on ADC
 	movlw	B'00000001'
 	movwf	ADCON0
 
@@ -159,51 +214,20 @@ Init
 	movlw	B'11000001'
 	movwf	NCO1CON
 
-	banksel	T1CON		;Timer1 ticks 1:8 with instruction clock when
-	movlw	B'00110000'	; running
-	movwf	T1CON
-
-	banksel	T2CON		;Timer2 ticks with instruction clock, rolls over
-	movlw	86		; at a little under half the sample loop length
-	movwf	PR2
-	movlw	B'00000100'
-	movwf	T2CON
-
-	banksel	APFCON		;Move CLC1 to RA4
-	movlw	B'00000010'
-	movwf	APFCON
-
 	banksel	ANSELA		;AN0 (RA0) pin analog, all others digital
 	movlw	B'00000001'
 	movwf	ANSELA
 
-	banksel	LATA		;Default state of output pins is high
-	movlw	B'00111111'
-	movwf	LATA
-
-	banksel	TRISA		;RxD, clock, and peak LED output, all other pins
-	movlw	B'00001001'	; inputs
-	movwf	TRISA
-
-	movlb	0		;Initialize key globals
-	movlw	high ADRESH
-	movwf	FSR0H
-	movlw	low ADRESH
-	movwf	FSR0L
-	movlw	high CLC1POL
-	movwf	FSR1H
-	movlw	low CLC1POL
-	movwf	FSR1L
-
 	;fall through
 
 
-;;; Mainline ;;;
+;;; Audio Mainline ;;;
 
-Main
+AudioMain
 	movlw	0x80		;Load silence for first sample
 	movwf	SAMPLE		; "
-	bcf	PIR1,ADIF	;Wait until first ADC sample has been read
+	movlb	0		;Wait until first ADC sample has been read
+	bcf	PIR1,ADIF	; "
 	btfss	PIR1,ADIF	; "
 	bra	$-1		; "
 	;fall through
@@ -251,8 +275,8 @@ SampleLoop
 	rrf	WREG,W		; the fraction bit into carry
 	WAITLAT			;Wait until first stop bit has been latched
 	movwf	SAMPLE		;Store averaged sample to transmit next
-	nop			; -
-	nop			; -
+	btfss	PORTA,SEL_PIN	;If we've been switched into MIDI mode, switch
+	bra	MidiInit	; into MIDI mode
 	WAITLAT			;Wait until second stop bit has been latched
 	xorlw	B'11111111'	;Set Z if sample peaked (if it is 0xFF or 0x00),
 	btfss	STATUS,Z	; else clear it
@@ -305,45 +329,74 @@ KeepLedState
 	bra	SampleLoop	;Loop
 
 
-;;; Lookup Tables ;;;
+;;; MIDI Hardware Initialization ;;;
 
-	org	0x100
+MidiInit
+	banksel	ADCON0		;Turn off ADC
+	clrf	ADCON0
 
-;Test tone: five periods of a sine wave of just under 440 Hz (concert A)
-;(currently unused)
-Tone
-	dt	0x80,0x8F,0x9E,0xAD,0xBB,0xC9,0xD5,0xE0
-	dt	0xE9,0xF1,0xF7,0xFB,0xFE,0xFE,0xFD,0xFA
-	dt	0xF5,0xEE,0xE6,0xDB,0xD0,0xC3,0xB6,0xA7
-	dt	0x98,0x89,0x79,0x6A,0x5B,0x4C,0x3E,0x31
-	dt	0x26,0x1B,0x13,0x0B,0x06,0x02,0x01,0x01
-	dt	0x03,0x07,0x0D,0x14,0x1D,0x28,0x34,0x41
-	dt	0x4F,0x5E,0x6D,0x7C,0x8C,0x9B,0xAA,0xB9
-	dt	0xC6,0xD2,0xDE,0xE7,0xF0,0xF6,0xFB,0xFE
-	dt	0xFF,0xFE,0xFB,0xF6,0xF0,0xE7,0xDE,0xD2
-	dt	0xC6,0xB9,0xAA,0x9B,0x8C,0x7C,0x6D,0x5E
-	dt	0x4F,0x41,0x34,0x28,0x1D,0x14,0x0D,0x07
-	dt	0x03,0x01,0x01,0x02,0x06,0x0B,0x13,0x1B
-	dt	0x26,0x31,0x3E,0x4C,0x5B,0x6A,0x79,0x89
-	dt	0x98,0xA7,0xB6,0xC3,0xD0,0xDB,0xE6,0xEE
-	dt	0xF5,0xFA,0xFD,0xFE,0xFE,0xFB,0xF7,0xF1
-	dt	0xE9,0xE0,0xD5,0xC9,0xBB,0xAD,0x9E,0x8F
-	dt	0x80,0x70,0x61,0x52,0x44,0x36,0x2A,0x1F
-	dt	0x16,0x0E,0x08,0x04,0x01,0x01,0x02,0x05
-	dt	0x0A,0x11,0x19,0x24,0x2F,0x3C,0x49,0x58
-	dt	0x67,0x76,0x86,0x95,0xA4,0xB3,0xC1,0xCE
-	dt	0xD9,0xE4,0xEC,0xF4,0xF9,0xFD,0xFE,0xFE
-	dt	0xFC,0xF8,0xF2,0xEB,0xE2,0xD7,0xCB,0xBE
-	dt	0xB0,0xA1,0x92,0x83,0x73,0x64,0x55,0x46
-	dt	0x39,0x2D,0x21,0x18,0x0F,0x09,0x04,0x01
-	dt	0x01,0x01,0x04,0x09,0x0F,0x18,0x21,0x2D
-	dt	0x39,0x46,0x55,0x64,0x73,0x83,0x92,0xA1
-	dt	0xB0,0xBE,0xCB,0xD7,0xE2,0xEB,0xF2,0xF8
-	dt	0xFC,0xFE,0xFE,0xFD,0xF9,0xF4,0xEC,0xE4
-	dt	0xD9,0xCE,0xC1,0xB3,0xA4,0x95,0x86,0x76
-	dt	0x67,0x58,0x49,0x3C,0x2F,0x24,0x19,0x11
-	dt	0x0A,0x05,0x02,0x01,0x01,0x04,0x08,0x0E
-	dt	0x16,0x1F,0x2A,0x36,0x44,0x52,0x61,0x70
+	banksel	WPUA		;Turn on weak pullup on input pin
+	bsf	WPUA,INP_PIN
+
+	banksel	CLC1CON		;CLC2 inverts CLC2IN1 (RA0), CLC1 inverts CLC2
+	movlw	B'01010000'
+	movwf	CLC1SEL0
+	clrf	CLC1SEL1
+	clrf	CLC1POL
+	movlw	B'00000100'
+	movwf	CLC1GLS0
+	movwf	CLC1GLS1
+	clrf	CLC1GLS2
+	clrf	CLC1GLS3
+	movlw	B'11000000'
+	movwf	CLC1CON
+	movlw	B'00000001'
+	movwf	CLC2SEL0
+	clrf	CLC2SEL1
+	clrf	CLC2POL
+	movlw	B'00000001'
+	movwf	CLC2GLS0
+	movwf	CLC2GLS1
+	clrf	CLC2GLS2
+	clrf	CLC2GLS3
+	movlw	B'11001000'
+	movwf	CLC2CON
+
+	banksel	NCO1CON		;NCO accumulator increments by 0xFFFF in pulse
+	movlw	B'01100000'	; mode with a pulse width of 8 16 MHz clock
+	movwf	NCO1CLK		; periods, resulting in a clock of approximately
+	movlw	0xFF		; 1 MHz, which is 32 times the MIDI baud rate of
+	movwf	NCO1INCH	; 31250 Hz
+	movwf	NCO1INCL
+	movlw	B'11000001'
+	movwf	NCO1CON
+
+	banksel	ANSELA		;All pins digital, not analog
+	clrf	ANSELA
+
+	;fall through
+
+
+;;; MIDI Mainline ;;;
+
+MidiMain
+	movlb	0		;Turn Timer1 on
+	bsf	T1CON,TMR1ON	; "
+	;fall through
+
+MidiLoop
+	btfsc	PIR1,TMR1IF	;If Timer1 has overflowed, turn the LED off
+	bcf	PORTA,LED_PIN	; "
+	btfsc	PORTA,SEL_PIN	;If we've been switched into audio digitizer
+	bra	AudioInit	; mode, switch into audio digitizer mode
+	btfss	PIR3,CLC2IF	;If MIDI line has gone low (activity), continue,
+	bra	MidiLoop	; else loop around
+	bcf	PIR3,CLC2IF	;Clear the interrupt
+	bsf	PORTA,LED_PIN	;Turn LED on to indicate activity
+	clrf	TMR1L		;Reset Timer1 so it can be used to turn the LED
+	clrf	TMR1H		; off after it's been on long enough to see
+	bcf	PIR1,TMR1IF	; "
+	bra	MidiLoop	;Loop
 
 
 ;;; End of Program ;;;
