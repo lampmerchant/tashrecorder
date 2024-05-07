@@ -69,6 +69,7 @@ WAITLAT	macro			;Wait until bit has been latched (BSR must be 0)
 
 ;Pin Assignments
 INP_PIN	equ	RA0	;MIDI/audio pin
+INP_ADC	equ	0 ;AN0	;Audio ADC input
 LED_PIN	equ	RA2	;Peak LED pin
 SEL_PIN	equ	RA3	;Mode select pin
 
@@ -178,8 +179,8 @@ AudioInit
 	banksel	WPUA		;Turn off weak pullup on input pin
 	bcf	WPUA,INP_PIN
 
-	banksel	ADCON0		;Turn on ADC
-	movlw	B'00000001'
+	banksel	ADCON0		;Turn on ADC, source audio input pin
+	movlw	B'00000001' | (INP_ADC << 2)
 	movwf	ADCON0
 
 	banksel	CLC1CON		;CLC1 is a DFF clocked by the NCO (its input is
@@ -214,8 +215,8 @@ AudioInit
 	movlw	B'11000001'
 	movwf	NCO1CON
 
-	banksel	ANSELA		;AN0 (RA0) pin analog, all others digital
-	movlw	B'00000001'
+	banksel	ANSELA		;Audio input pin analog, all others digital
+	movlw	1 << INP_PIN
 	movwf	ANSELA
 
 	;fall through
@@ -338,36 +339,36 @@ MidiInit
 	banksel	WPUA		;Turn on weak pullup on input pin
 	bsf	WPUA,INP_PIN
 
-	banksel	CLC1CON		;CLC2 inverts CLC2IN1 (RA0), CLC1 inverts CLC2
-	movlw	B'01010000'
-	movwf	CLC1SEL0
-	clrf	CLC1SEL1
+	banksel	CLC1CON		;CLC2 reflects CLC2IN1 (RA0), CLC1 inverts CLC2,
+	movlw	B'01010000'	; this along with the weak pullup allows CLC2IN1
+	movwf	CLC1SEL0	; to be connected directly to the (inverting)
+	clrf	CLC1SEL1	; output of a MIDI optocoupler such as the 6N138
 	clrf	CLC1POL
 	movlw	B'00000100'
 	movwf	CLC1GLS0
 	movwf	CLC1GLS1
 	clrf	CLC1GLS2
 	clrf	CLC1GLS3
-	movlw	B'11000000'
+	movlw	B'11001000'
 	movwf	CLC1CON
 	movlw	B'00000001'
 	movwf	CLC2SEL0
 	clrf	CLC2SEL1
 	clrf	CLC2POL
-	movlw	B'00000001'
+	movlw	B'00000010'
 	movwf	CLC2GLS0
 	movwf	CLC2GLS1
 	clrf	CLC2GLS2
 	clrf	CLC2GLS3
-	movlw	B'11001000'
+	movlw	B'11000000'
 	movwf	CLC2CON
 
 	banksel	NCO1CON		;NCO accumulator increments by 0xFFFF in pulse
 	movlw	B'01100000'	; mode with a pulse width of 8 16 MHz clock
 	movwf	NCO1CLK		; periods, resulting in a clock of approximately
 	movlw	0xFF		; 1 MHz, which is 32 times the MIDI baud rate of
-	movwf	NCO1INCH	; 31250 Hz
-	movwf	NCO1INCL
+	movwf	NCO1INCH	; 31250 Hz and matches the clock used by the
+	movwf	NCO1INCL	; Apple MIDI interface
 	movlw	B'11000001'
 	movwf	NCO1CON
 
@@ -389,9 +390,9 @@ MidiLoop
 	bcf	PORTA,LED_PIN	; "
 	btfsc	PORTA,SEL_PIN	;If we've been switched into audio digitizer
 	bra	AudioInit	; mode, switch into audio digitizer mode
-	btfss	PIR3,CLC2IF	;If MIDI line has gone low (activity), continue,
+	btfss	PIR3,CLC1IF	;If MIDI line has gone low (activity), continue,
 	bra	MidiLoop	; else loop around
-	bcf	PIR3,CLC2IF	;Clear the interrupt
+	bcf	PIR3,CLC1IF	;Clear the interrupt
 	bsf	PORTA,LED_PIN	;Turn LED on to indicate activity
 	clrf	TMR1L		;Reset Timer1 so it can be used to turn the LED
 	clrf	TMR1H		; off after it's been on long enough to see
