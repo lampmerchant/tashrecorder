@@ -34,7 +34,7 @@
 			;_FOSC_INTOSC	Internal oscillator, I/O on RA5
 			;_WDTE_OFF	Watchdog timer disabled
 			;_PWRTE_ON	Keep in reset for 64 ms on start
-			;_MCLRE_ON	RA3/!MCLR is RA3
+			;_MCLRE_OFF	RA3/!MCLR is RA3
 			;_CP_OFF	Code protection off
 			;_BOREN_OFF	Brownout reset off
 			;_CLKOUTEN_OFF	CLKOUT disabled, I/O on RA4

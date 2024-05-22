@@ -32,7 +32,7 @@ The LED flashes on when the audio has peaked for a set number of consecutive sam
 
 ### MIDI Interface Mode
 
-In MIDI Interface Mode, the firmware imitates the input of an Apple MIDI Interface, generating a 1 MHz clock (32 times the MIDI baud rate of 31250 Hz) and relaying the input pin's state directly to the RxD pins.  The MIDI input pin has an internal weak pullup and its state is inverted before being reflected by the RxD pins; this allows it to be connected directly to the output of an optocoupler such as the 6N138.
+In MIDI Interface Mode, the firmware imitates the input of an Apple MIDI Interface, generating a 1 MHz clock (32 times the MIDI baud rate of 31250 Hz) and relaying the input pin's state directly to the RxD pins.  The MIDI input pin's state is inverted before being reflected by the RxD pins; this allows it to be connected directly to the output of an optocoupler such as the 6N138 with the addition of an external pullup resistor.
 
 The LED flashes on when data is being received over the MIDI interface.
 
