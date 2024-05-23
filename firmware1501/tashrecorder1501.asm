@@ -176,9 +176,6 @@ Init
 ;;; Audio Digitizer Hardware Initialization ;;;
 
 AudioInit
-	banksel	WPUA		;Turn off weak pullup on input pin
-	bcf	WPUA,INP_PIN
-
 	banksel	ADCON0		;Turn on ADC, source audio input pin
 	movlw	B'00000001' | (INP_ADC << 2)
 	movwf	ADCON0
@@ -336,13 +333,10 @@ MidiInit
 	banksel	ADCON0		;Turn off ADC
 	clrf	ADCON0
 
-	banksel	WPUA		;Turn on weak pullup on input pin
-	bsf	WPUA,INP_PIN
-
-	banksel	CLC1CON		;CLC2 reflects CLC2IN1 (RA0), CLC1 inverts CLC2,
-	movlw	B'01010000'	; this along with the weak pullup allows CLC2IN1
-	movwf	CLC1SEL0	; to be connected directly to the (inverting)
-	clrf	CLC1SEL1	; output of a MIDI optocoupler such as the 6N138
+	banksel	CLC1CON		;CLC2 inverts CLC2IN1 (RA0), CLC1 inverts CLC2,
+	movlw	B'01010000'	; this along with an external pullup allows
+	movwf	CLC1SEL0	; CLC2IN1 to be connected directly to the output
+	clrf	CLC1SEL1	; of a MIDI optocoupler such as the 6N138
 	clrf	CLC1POL
 	movlw	B'00000100'
 	movwf	CLC1GLS0
@@ -355,7 +349,6 @@ MidiInit
 	movwf	CLC2SEL0
 	clrf	CLC2SEL1
 	clrf	CLC2POL
-	movlw	B'00000010'
 	movwf	CLC2GLS0
 	movwf	CLC2GLS1
 	clrf	CLC2GLS2
