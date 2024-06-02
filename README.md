@@ -27,7 +27,7 @@ The LED output is active high.
 
 In Audio Digitizer mode, the firmware imitates a Farallon MacRecorder, generating a clock of approximately 358 kHz (one tenth the NTSC color burst frequency), oversampling the input pin at a rate of approximately 44 kHz and transmitting 8-bit samples to the Macintosh at a rate of approximately 22 kHz.
 
-The LED flashes on when the audio has peaked for a set number of consecutive samples (17 by default, changeable by editing the PEAKPWR parameter in firmware).
+The LED flashes on when the audio has peaked for a set number of consecutive samples (3 by default, changeable by editing the PEAKPWR parameter in firmware).  Peaking is determined by masking off a number of bits (3 by default, changeable by editing the PEAKMSK parameter in firmware) and checking whether the remaining bits are all ones or all zeroes.
 
 
 ### MIDI Interface Mode
