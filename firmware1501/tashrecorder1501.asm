@@ -375,8 +375,9 @@ MidiInit
 ;;; MIDI Mainline ;;;
 
 MidiMain
-	movlb	0		;Turn Timer1 on
-	bsf	T1CON,TMR1ON	; "
+	movlb	0		;Clear the MIDI line interrupt in case it got
+	bcf	PIR3,CLC1IF	; set during initialization
+	bsf	T1CON,TMR1ON	;Turn Timer1 on
 	;fall through
 
 MidiLoop
