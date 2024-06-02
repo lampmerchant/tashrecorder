@@ -74,7 +74,8 @@ LED_PIN	equ	RA2	;Peak LED pin
 SEL_PIN	equ	RA3	;Mode select pin
 
 ;Parameters
-PEAKPWR	equ	4	;2^n + 1 consecutive samples must peak to turn LED on
+PEAKPWR	equ	1	;2^n + 1 consecutive samples must peak to turn LED on
+PEAKMSK	equ	3	;Mask off n lowest bits before determining peak
 
 
 ;;; Variable Storage ;;;
@@ -276,9 +277,9 @@ SampleLoop
 	btfss	PORTA,SEL_PIN	;If we've been switched into MIDI mode, switch
 	bra	MidiInit	; into MIDI mode
 	WAITLAT			;Wait until second stop bit has been latched
-	xorlw	B'11111111'	;Set Z if sample peaked (if it is 0xFF or 0x00),
-	btfss	STATUS,Z	; else clear it
-	xorlw	B'11111111'	; "
+	andlw	-(1 << PEAKMSK)	;Set Z if sample peaked in either direction
+	btfss	STATUS,Z	; (after masking off low PEAKMSK bits), else
+	xorlw	-(1 << PEAKMSK)	; clear it
 	WAITLAT			;Wait until third stop bit has been latched
 	btfsc	STATUS,Z	;If sample peaked, skip ahead to deal with it
 	bra	SamplePeaked	; "
