@@ -6253,7 +6253,7 @@
 				)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "47Ω"
 			(at 247.65 124.0536 90)
 			(effects
 				(font
@@ -6852,7 +6852,7 @@
 				)
 			)
 		)
-		(property "Value" "47"
+		(property "Value" "47Ω"
 			(at 247.65 73.2536 90)
 			(effects
 				(font
@@ -7366,7 +7366,7 @@
 		(at 152.4 165.1 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "00000000-0000-0000-0000-000060d00876")
@@ -7429,7 +7429,7 @@
 		(at 139.7 177.8 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "00000000-0000-0000-0000-000060d0095c")
@@ -7492,7 +7492,7 @@
 		(at 152.4 177.8 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "00000000-0000-0000-0000-000060d012a8")
@@ -8218,7 +8218,7 @@
 		(at 139.7 165.1 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "1a98b67d-d936-4cc8-9f9b-4a0681621805")
@@ -8851,7 +8851,7 @@
 				)
 			)
 		)
-		(property "Value" "220k"
+		(property "Value" "220kΩ"
 			(at 114.3 124.0536 90)
 			(effects
 				(font
@@ -9070,7 +9070,7 @@
 		(at 166.37 106.68 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
