@@ -1,0 +1,9 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP PTD901-1015F-A203
+D Potentiometers 20K AUDIO
+K
+F https://www.bourns.com/docs/Product-Datasheets/PTD90.pdf
+$ENDCMP
+#
+#End Doc Library
